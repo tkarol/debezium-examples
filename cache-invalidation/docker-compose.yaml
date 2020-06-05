@@ -9,7 +9,7 @@ services:
      - POSTGRES_PASSWORD=postgrespw
      - POSTGRES_DB=inventory
   order-manager:
-    image: debezium-examples/cache-invalidation:latest
+    image: quay.io/eupraxialabs/cache-invalidation:1.1
     build:
       context: .
     links:

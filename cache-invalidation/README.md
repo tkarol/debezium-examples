@@ -1,5 +1,17 @@
 # JPA Cache Invalidation
 
+Debezium Demo
+
+
+branch called "actual-origin" not "origin"
+command to change database directly, not from application:
+docker-compose exec postgres bash -c 'psql -U $POSTGRES_USER $POSTGRES_DB -c "UPDATE item SET price = 20.99 where id = 10003"'
+
+Command to run application:
+docker-compose up --build
+
+
+
 This demo shows how Debezium can be used to invalidate items in the JPA 2nd level cache after external data changes,
 e.g. a manual record update in the database, bypassing the application layer.
 

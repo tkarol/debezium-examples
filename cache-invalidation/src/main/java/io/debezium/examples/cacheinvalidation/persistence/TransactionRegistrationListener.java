@@ -16,6 +16,9 @@ import org.hibernate.Session;
 import org.hibernate.event.spi.FlushEvent;
 import org.hibernate.event.spi.FlushEventListener;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Hibernate event listener obtains the current TX id and stores it in a cache.
  *
@@ -33,11 +36,21 @@ class TransactionRegistrationListener implements FlushEventListener {
         sessionsWithBeforeTransactionCompletion = new ConcurrentHashMap<>();
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger( TransactionRegistrationListener.class );
+
+    /**
+     * Synchronizes persistence context with database by "flushing"
+     * Flushes when transaction is committed
+     * @param event
+     * @throws HibernateException
+     */
     @Override
     public void onFlush(FlushEvent event) throws HibernateException {
-        if (sessionsWithBeforeTransactionCompletion.containsKey(event.getSession())) {
-            return;
-        }
+     //   if (sessionsWithBeforeTransactionCompletion.containsKey(event.getSession())) {
+     //       LOG.info("FLUSHED onFlush method invoked");
+     //       return;
+     //   }
+        LOG.info("onFlush method invoked");
 
         sessionsWithBeforeTransactionCompletion.put(event.getSession(), true);
 

@@ -24,7 +24,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.storage.MemoryOffsetBackingStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import io.debezium.*;
 import io.debezium.config.Configuration;
 import io.debezium.connector.postgresql.PostgresConnector;
 import io.debezium.connector.postgresql.PostgresConnectorConfig;
@@ -60,6 +60,12 @@ public class DatabaseChangeEventListener {
     @Inject
     private KnownTransactions knownTransactions;
 
+    /**
+     * Engine to run Postgres-Debezium connector to PG database
+     * Contains configuration for connector as well as starts engine & connector
+     * I beleive this is the main cause and area which is failing the Producer
+     * @param init
+     */
     public void startEmbeddedEngine(@Observes @Initialized(ApplicationScoped.class) Object init) {
         LOG.info("Launching Debezium embedded engine");
 
@@ -76,13 +82,15 @@ public class DatabaseChangeEventListener {
                 .with("database.server.name", "dbserver1")
                 .with("database.dbname", "inventory")
                 .with("database.whitelist", "public")
-                .with(PostgresConnectorConfig.SNAPSHOT_MODE, SnapshotMode.NEVER)
+                .with("snapshot.mode", "never")
                 .build();
 
         this.engine = EmbeddedEngine.create()
                 .using(config)
                 .notifying(this::handleDbChangeEvent)
                 .build();
+
+        LOG.info("connector connected");
 
         executorService.execute(engine);
     }
@@ -93,6 +101,11 @@ public class DatabaseChangeEventListener {
         engine.stop();
     }
 
+    /**
+     * Handles changes within DB and evicts 2nd level cache if DB table is changed
+     * Not sure why this method is in this class and KnownTransactions.java
+     * @param record
+     */
     private void handleDbChangeEvent(SourceRecord record) {
         LOG.info("Handling DB change event " + record);
 
@@ -102,7 +115,12 @@ public class DatabaseChangeEventListener {
             Operation op = Operation.forCode(payload.getString("op"));
             Long txId = ((Struct) payload.get("source")).getInt64("txId");
 
-            if (knownTransactions.isKnown(txId)) {
+            if (!knownTransactions.isKnown(txId) &&
+                    (op == Operation.UPDATE || op == Operation.DELETE)) {
+                emf.getCache().evict(Item.class, itemId);
+            }
+
+            else if (knownTransactions.isKnown(txId)) {
                 LOG.info("Not evicting item {} from 2nd-level cache as TX {} was started by this application", itemId, txId);
             }
             else if (op != Operation.UPDATE && op != Operation.DELETE) {
